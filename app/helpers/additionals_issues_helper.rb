@@ -1,8 +1,11 @@
 module AdditionalsIssuesHelper
   def author_options_for_select(project, entity = nil, permission = nil)
-    scope = project.present? ? project.users.visible : User.active.visible
-    scope = scope.with_permission(permission, project) unless permission.nil?
-    authors = scope.sorted.to_a
+    current_user_roles = User.current.roles_for_project(project)
+    scope = current_user_roles.map{ |role| project.principals_by_role[role] }.flatten
+    customer_role = Role.find_by(name: "Customer")
+    scope << project.principals_by_role[customer_role] unless project.blank?
+    scope = scope.flatten.compact.uniq.select{|principal| principal.type == "User" && principal.active?}
+    authors = scope.sort_by(&:lastname)
 
     unless entity.nil?
       current_author_found = authors.detect { |u| u.id == entity.author_id_was }
